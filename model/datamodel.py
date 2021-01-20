@@ -66,15 +66,15 @@ from sklearn.model_selection import train_test_split
 x_train, x_val, y_train, y_val = train_test_split(df_train.iloc[:,:-2], df_train.iloc[:,-2],train_size=0.8, random_state=0)
 x1_train, x1_val, y1_train, y1_val = train_test_split(df_train.iloc[:,:-2], df_train.iloc[:,-1],train_size=0.8, random_state=0)
 
-# print(x_train.shape) # (41627, 336, 7)
-# print(y_train.shape) # (41627, )
+print(x_train.shape) # (41971, 7)
+print(y_train.shape) # (41971, )
 
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM
 
 model = Sequential()
-model.add(Dense(10, input_shape=(336, 7), activation='relu'))
+model.add(Dense(10, input_shape=(7, ), activation='relu'))
 model.add(Dense(20))
 model.add(Dense(20))
 model.add(Dense(20))
@@ -84,13 +84,12 @@ model.add(Dense(1))
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 es = EarlyStopping(monitor='val loss', patience=30)
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=15, factor=0.5, verbose=1)
-
 model.compile(loss='mse', optimizer='adam', metrics='accuracy')
-model.fit(x_train, y_train, batch_size=96, epochs=1, validation_split=0.2, callbacks=[es, reduce_lr])
+model.fit(x_train, y_train, batch_size=96, epochs=1000, validation_split=0.2, callbacks=[es, reduce_lr])
 model.evaluate(x_val, y_val, batch_size=96)
 y1_pred = model.predict(X_test)
-# y1_pred = np.array(y1_pred)
-
+print(y1_pred)
+'''
 y0=[]
 for a in range(3888):
     y_pi = model.predict(X_test[a:a+1,:])
@@ -130,7 +129,7 @@ Y0.columns = ['q_0.1','q_0.2','q_0.3','q_0.4','q_0.5','q_0.6','q_0.7','q_0.8','q
 Y0.index = index_c                
 print(Y0)
 Y0.to_csv('./csv/test1.csv', index=True)
-
+'''
 
 
 '''
