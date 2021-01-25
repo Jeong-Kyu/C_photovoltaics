@@ -1,3 +1,5 @@
+# 데이터 각 특성별 
+
 import numpy as np
 import pandas as pd
 
@@ -111,7 +113,7 @@ x_val = x_val.reshape(10493, 7)
 x_test = x_test.reshape(3888, 7)
 
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-scaler = MinMaxScaler()
+scaler = StandardScaler()
 scaler.fit(x_train)
 x_train = scaler.transform(x_train)
 x_val = scaler.transform(x_val)
@@ -153,12 +155,15 @@ y0=[]
 y1=[]
 for q in q_lst:
     model = Sequential()
-    model.add(LSTM(256, activation='relu', input_shape = (1,7)))
-    # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
-    # model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
-    # model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
-    # model.add(Conv1D(32,2,padding = 'same', activation = 'relu'))
-    # model.add(Flatten())
+    # model.add(LSTM(256, activation='relu', input_shape = (1,7)))
+    model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
+    model.add(Dropout(0.2))
+    model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
+    model.add(Dropout(0.2))
+    model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
+    model.add(Dropout(0.2))
+    model.add(Conv1D(32,2,padding = 'same', activation = 'relu'))
+    model.add(Flatten())
     model.add(Dense(128, activation = 'relu'))
     model.add(Dense(64, activation = 'relu'))
     model.add(Dense(32, activation = 'relu'))
@@ -171,7 +176,7 @@ for q in q_lst:
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=10, factor=0.5, verbose=1)
     model.compile(loss=lambda y,pred: quantile_loss(q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(q, y, pred)])
 
-    model.fit(x_train, y1_train, batch_size=96, epochs=100, callbacks=[es, reduce_lr])
+    model.fit(x_train, y1_train, batch_size=96, epochs=1000, callbacks=[es, reduce_lr])
     model.evaluate(x_val, y1_val, batch_size=96)
     y1_pred = model.predict(x_test)
     y1_pred = pd.DataFrame(y1_pred)
@@ -183,12 +188,15 @@ submission.loc[submission.id.str.contains("Day7"), "q_0.1":] = num_temp1
 
 for q in q_lst:
     model = Sequential()
-    model.add(LSTM(256, activation='relu', input_shape = (1,7)))
-    # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
-    # model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
-    # model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
-    # model.add(Conv1D(32,2,padding = 'same', activation = 'relu'))
-    # model.add(Flatten())
+    # model.add(LSTM(256, activation='relu', input_shape = (1,7)))
+    model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
+    model.add(Dropout(0.2))
+    model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
+    model.add(Dropout(0.2))
+    model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
+    model.add(Dropout(0.2))
+    model.add(Conv1D(32,2,padding = 'same', activation = 'relu'))
+    model.add(Flatten())
     model.add(Dense(128, activation = 'relu'))
     model.add(Dense(64, activation = 'relu'))
     model.add(Dense(32, activation = 'relu'))
@@ -201,7 +209,7 @@ for q in q_lst:
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=10, factor=0.5, verbose=1)
     model.compile(loss=lambda y,pred: quantile_loss(q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(q, y, pred)])    
     
-    model.fit(x_train, y2_train, batch_size=96, epochs=100, callbacks=[es, reduce_lr])
+    model.fit(x_train, y2_train, batch_size=96, epochs=1000, callbacks=[es, reduce_lr])
     model.evaluate(x_val, y2_val, batch_size=96)
     y2_pred = model.predict(x_test)
     y2_pred = pd.DataFrame(y2_pred)
@@ -211,7 +219,7 @@ df_temp2[df_temp2<0] = 0
 num_temp2 = df_temp2.to_numpy()
 submission.loc[submission.id.str.contains("Day8"), "q_0.1":] = num_temp2
         
-submission.to_csv('./csv/sample_submission210124e.csv', index = False)
+submission.to_csv('./csv/sample_submission210125.csv', index = False)
 '''
 y0=np.array(y0)    
 print(y0.shape)
@@ -306,5 +314,17 @@ for a in range(3888):
 Y0 = pd.DataFrame(y0)
 '''
 
-# oss: 4.8112
+#  LSTM - StandardScaler
 #  loss: 0.8108 - <lambda>: 0.8108
+#  LSTM - MinMaxScaler
+#  loss: 0.8211 - <lambda>: 0.8211
+#  Conv1d - StandardScaler
+#  loss: 0.8201 - <lambda>: 0.8201
+#  Conv1d - StandarScaler - Dropout - epochs=1000
+
+
+#  GPU 오류
+# 374/438 [========================>.....] - ETA: 0s - loss: 2.2510 - <lambda>: 2.25102021-01-25 12:15:29.974332: E 
+# tensorflow/stream_executor/cuda/cuda_event.cc:29] Error polling for event status: failed to query event: CUDA_ERROR_UNKNOWN: unknown error
+# 2021-01-25 12:15:30.469082: F tensorflow/core/common_runtime/gpu/gpu_event_mgr.cc:220] Unexpected Event status: 1
+# PS C:\photovoltaics> 
