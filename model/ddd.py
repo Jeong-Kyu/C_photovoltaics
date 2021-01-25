@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 train_data = pd.read_csv('./csv/train/train.csv',thousands = ',', encoding='UTF8', index_col=0, header=0)
+submission = pd.read_csv('./csv/sample_submission.csv')
 
 def preprocess_data(data, is_train=True):
     
@@ -22,13 +23,12 @@ def preprocess_data(data, is_train=True):
                               
         return temp.iloc[-48:, :]
 df_train = preprocess_data(train_data)
-df_train=df_train.to_numpy()
-print(df_train.shape) #(52464,9)
-x = df_train[:,:-2]
-y = df_train[:,-2:]
 
-x=x.reshape(1093,48,7)
-y=y.reshape(1093,48,2)
+# df_train.reshape(52464,9,1)
+
+# df_train = df_train.astype('float32')
+
+df_train=df_train.to_numpy()
 
 df_test = []
 
@@ -41,7 +41,7 @@ for i in range(81):
 # print('--------------------')
 X_test = pd.concat(df_test)
 X_test=X_test.to_numpy()
-X_test=X_test.reshape(81,48,7)
+x_test = X_test
 # print(X_test) # (3888, 7)
 
 
@@ -62,20 +62,65 @@ X_test=X_test.reshape(81,48,7)
 # x, y = split_xy4(df_train, 7*48,7,2*48,2)
 # print(type(x))
 # print(type(y))
+def split_xy(data,timestep):
+    x, y1, y2 = [],[],[]
+    for i in range(len(data)):
+        x_end = i + timestep
+        if x_end>len(data):
+            break
+        tmp_x = data[i:x_end,:-2]
+        tmp_y1 = data[x_end-1:x_end,-2]
+        tmp_y2 = data[x_end-1:x_end,-1]
+        x.append(tmp_x)
+        y1.append(tmp_y1)
+        y2.append(tmp_y2)
+    return(np.array(x),np.array(y1),np.array(y2))
 
+x,y1,y2 = split_xy(df_train,1)
+
+def split_x(data,timestep):
+    x = []
+    for i in range(len(data)):
+        x_end = i + timestep
+        if x_end>len(data):
+            break
+        tmp_x = data[i:x_end]
+        x.append(tmp_x)
+    return(np.array(x))
+
+x_test = split_x(x_test,1)
+
+# print(x.shape)
+# print(y1.shape)
+# print(y2.shape)
+# print(X_test.shape)
+# (52464, 1, 7)
+# (52464, 1)
+# (52464, 1)
+# (3888, 7)
 
 from sklearn.model_selection import train_test_split
-x_train, x_val, y_train, y_val = train_test_split(x, y,train_size=0.8, random_state=0, shuffle=False)
-# x1_train, x1_val, y1_train, y1_val = train_test_split(x, y2,train_size=0.8, random_state=0, shuffle=False)
-# x1_train, x1_val, y1_train, y1_val = train_test_split(df_train.iloc[:,:,:-2], df_train.iloc[:,:,-1],train_size=0.8, random_state=0, shuffle=False)
-# x_train=x_train.to_numpy()
-# x_val=x_val.to_numpy()
-# x1_train=x1_train.to_numpy()
-# x1_val=x1_val.to_numpy()
+x_train, x_val, y1_train, y1_val, y2_train, y2_val = train_test_split(x,y1,y2,train_size=0.8, random_state=0, shuffle=False)
+# print(x_test.shape) # (3888, 1,7)
+# print(x_train.shape) # (41971, 1,7)
+# print(x_val.shape) # (10493, 1, 7)
+# print(y1_train.shape) # (41971, 1)
+# print(y1_val.shape) # (10493, 1)
+x_train = x_train.reshape(41971, 7)
+x_val = x_val.reshape(10493, 7)
+x_test = x_test.reshape(3888, 7)
 
-# print(x_train) # (41971, 7)
-# print(x_val.shape) # (41971, 7)
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+scaler = MinMaxScaler()
+scaler.fit(x_train)
+x_train = scaler.transform(x_train)
+x_val = scaler.transform(x_val)
+x_test = scaler.transform(x_test)
 
+print(x_train.shape) # (41971, 1,7)
+x_train = x_train.reshape(41971,1, 7)
+x_val = x_val.reshape(10493, 1,7)
+x_test = x_test.reshape(3888, 1,7)
 # print(y_train.shape) # (41971, )
 # from sklearn.preprocessing import MinMaxScaler, StandardScaler
 # scaler = StandardScaler()
@@ -91,17 +136,8 @@ x_train, x_val, y_train, y_val = train_test_split(x, y,train_size=0.8, random_st
 # X_test = X_test.reshape(3888,7,1)
 # x1_train = x1_train.reshape(41971,7,1)
 # x1_val = x1_val.reshape(10493,7,1)
-
-print(x_train.shape)
-print(x_val.shape)
-# print(x1_train.shape)
-# print(x1_val.shape)
-print(y_train.shape)
-# print(y1_train.shape)
-print(y_val.shape)
-# print(y1_val.shape)
-
-
+# print(y_train)
+# print(y1_train)
 
 
 from tensorflow.keras.models import Sequential
@@ -109,85 +145,88 @@ from tensorflow.keras.layers import Dense, LSTM,Conv1D, Dropout, Flatten
 from tensorflow.keras.backend import mean, maximum
 
 q_lst = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-def quantile_loss(i, q, y, pred):
-  err = (y[i]-pred[i])
+def quantile_loss(q, y, pred):
+  err = (y-pred)
   return mean(maximum(q*err, (q-1)*err), axis=-1)
 
 y0=[]
-y9=[]
+y1=[]
 for q in q_lst:
     model = Sequential()
-    model.add(Conv1D(filters = 100, kernel_size=1, input_shape=(48,7)))
-    model.add(Dense(200))
-    model.add(Dropout(0.4))
-    model.add(Dense(200))
-    model.add(Dropout(0.4))
-    model.add(Dense(200))
-    model.add(Dropout(0.4))
-    model.add(Dense(200))
-    model.add(Dropout(0.4))
-    model.add(Dense(200))
-    model.add(Dropout(0.4))
-    model.add(Dense(200))
-    model.add(Dropout(0.4))
-    model.add(Dense(200))
-    model.add(Dense(2))
-    # model = Sequential()
-    # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (48,7)))
+    model.add(LSTM(256, activation='relu', input_shape = (1,7)))
+    # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
     # model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
     # model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
     # model.add(Conv1D(32,2,padding = 'same', activation = 'relu'))
     # model.add(Flatten())
-    # model.add(Dense(128, activation = 'relu'))
-    # model.add(Dense(64, activation = 'relu'))
-    # model.add(Dense(32, activation = 'relu'))
-    # model.add(Dense(16, activation = 'relu'))
-    # model.add(Dense(8, activation = 'relu'))
-    # model.add(Dense(2))
+    model.add(Dense(128, activation = 'relu'))
+    model.add(Dense(64, activation = 'relu'))
+    model.add(Dense(32, activation = 'relu'))
+    model.add(Dense(16, activation = 'relu'))
+    model.add(Dense(8, activation = 'relu'))
+    model.add(Dense(1))
+
     from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
     es = EarlyStopping(monitor='val_loss', patience=20)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=10, factor=0.5, verbose=1)
-    
-    model.compile(loss=lambda y,pred: quantile_loss(0, q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(0, q, y, pred)])
-    hist1 = model.fit(x_train, y_train, batch_size=96, epochs=1, validation_split=0.2, callbacks=[es, reduce_lr])
-    model.evaluate(x_val, y_val, batch_size=96)
-    y1_pred = model.predict(X_test)
+    model.compile(loss=lambda y,pred: quantile_loss(q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(q, y, pred)])
+
+    model.fit(x_train, y1_train, batch_size=96, epochs=100, callbacks=[es, reduce_lr])
+    model.evaluate(x_val, y1_val, batch_size=96)
+    y1_pred = model.predict(x_test)
+    y1_pred = pd.DataFrame(y1_pred)
     y0.append(y1_pred)
+df_temp1 = pd.concat(y0, axis = 1)
+df_temp1[df_temp1<0] = 0
+num_temp1 = df_temp1.to_numpy()
+submission.loc[submission.id.str.contains("Day7"), "q_0.1":] = num_temp1
 
-    model.compile(loss=lambda y,pred: quantile_loss(1, q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(1, q, y, pred)])
-    hist1 = model.fit(x_train, y_train, batch_size=96, epochs=1, validation_split=0.2, callbacks=[es, reduce_lr])
-    model.evaluate(x_val, y_val, batch_size=96)
-    y1_pred = model.predict(X_test)
-    y9.append(y1_pred)
+for q in q_lst:
+    model = Sequential()
+    model.add(LSTM(256, activation='relu', input_shape = (1,7)))
+    # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
+    # model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
+    # model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
+    # model.add(Conv1D(32,2,padding = 'same', activation = 'relu'))
+    # model.add(Flatten())
+    model.add(Dense(128, activation = 'relu'))
+    model.add(Dense(64, activation = 'relu'))
+    model.add(Dense(32, activation = 'relu'))
+    model.add(Dense(16, activation = 'relu'))
+    model.add(Dense(8, activation = 'relu'))
+    model.add(Dense(1))
 
-    # hist2 = model.fit(x1_train, y1_train, batch_size=96, epochs=5, validation_split=0.2, callbacks=[es, reduce_lr])
-    # model.evaluate(x1_val, y1_val, batch_size=96)
-    # y2_pred = model.predict(X_test)
-    # y0.append(y2_pred)
+    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+    es = EarlyStopping(monitor='val_loss', patience=20)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=10, factor=0.5, verbose=1)
+    model.compile(loss=lambda y,pred: quantile_loss(q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(q, y, pred)])    
     
-y0=np.array(y0)
-Y0 = y0.transpose()
-Y0 = Y0.reshape(7776,9)
-# Y0 = pd.DataFrame(y0)
-print(Y0.shape)
+    model.fit(x_train, y2_train, batch_size=96, epochs=100, callbacks=[es, reduce_lr])
+    model.evaluate(x_val, y2_val, batch_size=96)
+    y2_pred = model.predict(x_test)
+    y2_pred = pd.DataFrame(y2_pred)
+    y1.append(y2_pred)
+df_temp2 = pd.concat(y1, axis = 1)
+df_temp2[df_temp2<0] = 0
+num_temp2 = df_temp2.to_numpy()
+submission.loc[submission.id.str.contains("Day8"), "q_0.1":] = num_temp2
+        
+submission.to_csv('./csv/sample_submission210124e.csv', index = False)
+'''
+y0=np.array(y0)    
+print(y0.shape)
+y0 = y0.transpose()
+y0 = y0.reshape(3888, 18)
+Y0 = pd.DataFrame(y0)
+Y0.to_csv('./csv/test1.csv', index=True)
 
-y9 =np.array(y9)
-Y9 = y9.transpose()
-Y9 = Y9.reshape(7776,9)
-# Y9 = pd.DataFrame(y9)
-print(Y9.shape)
-
-Y5=[]
-for w in range(81):
-    Y5.append(Y0[(w*48):((w+1)*48),:])
-    Y5.append(Y9[(w*48):((w+1)*48),:])
-
-Y5 = np.asarray(Y5)
-
-print(Y5)
-print(Y5.shape)
-Y5 = Y5.reshape(15552,9)
-Y5 = pd.DataFrame(Y5)
+y_percentiles=[]
+for a in range(7776):
+    percenti1 = np.percentile(Y0, [10,20,30,40,50,60,70,80,90], interpolation='nearest')
+    y_percentiles.append(percenti1)
+    print(y_percentiles)
+    print("7776 / ",a)
+y_percentiles = pd.DataFrame(y_percentiles)
 
 index_c = []
 
@@ -197,11 +236,12 @@ for i in range(81):
             for c in range(2):
                 index = str(i)+".csv_Day"+str(a+7)+"_"+str(b)+"h"+"%02d"%(30*(c))+"m"
                 index_c.append(index)
-Y5.columns = ['q_0.1','q_0.2','q_0.3','q_0.4','q_0.5','q_0.6','q_0.7','q_0.8','q_0.9']
-Y5.index = index_c                
-print(Y5)
-Y5.to_csv('./csv/test1.csv', index=True)
 
+Y0.columns = ['q_0.1','q_0.2','q_0.3','q_0.4','q_0.5','q_0.6','q_0.7','q_0.8','q_0.9']
+y_percentiles.index = index_c                
+print(Y0)
+Y0.to_csv('./csv/test1.csv', index=True)
+'''
 '''
 import matplotlib.pyplot as plt
 import matplotlib
@@ -265,3 +305,6 @@ for a in range(3888):
 
 Y0 = pd.DataFrame(y0)
 '''
+
+# oss: 4.8112
+#  loss: 0.8108 - <lambda>: 0.8108
