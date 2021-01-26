@@ -9,7 +9,7 @@ submission = pd.read_csv('./csv/sample_submission.csv')
 def preprocess_data(data, is_train=True):
     
     temp = data.copy()
-    temp = temp[['Hour', 'TARGET', 'DHI', 'DNI', 'WS','RH', 'T']]
+    temp = temp[['Hour', 'TARGET', 'DHI','DNI', 'RH', 'T']]# 'WS',
 
     if is_train==True:          
     
@@ -21,7 +21,7 @@ def preprocess_data(data, is_train=True):
 
     elif is_train==False:
         
-        temp = temp[['Hour', 'TARGET', 'DHI', 'DNI', 'WS','RH', 'T']]
+        temp = temp[['Hour', 'TARGET', 'DHI','DNI', 'RH', 'T']]# 'WS',
                               
         return temp.iloc[-48:, :]
 df_train = preprocess_data(train_data)
@@ -108,9 +108,9 @@ x_train, x_val, y1_train, y1_val, y2_train, y2_val = train_test_split(x,y1,y2,tr
 # print(x_val.shape) # (10493, 1, 7)
 # print(y1_train.shape) # (41971, 1)
 # print(y1_val.shape) # (10493, 1)
-x_train = x_train.reshape(41971, 7)
-x_val = x_val.reshape(10493, 7)
-x_test = x_test.reshape(3888, 7)
+x_train = x_train.reshape(41971, 6)
+x_val = x_val.reshape(10493, 6)
+x_test = x_test.reshape(3888, 6)
 
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 scaler = StandardScaler()
@@ -120,9 +120,9 @@ x_val = scaler.transform(x_val)
 x_test = scaler.transform(x_test)
 
 print(x_train.shape) # (41971, 1,7)
-x_train = x_train.reshape(41971,1, 7)
-x_val = x_val.reshape(10493, 1,7)
-x_test = x_test.reshape(3888, 1,7)
+x_train = x_train.reshape(41971,1, 6)
+x_val = x_val.reshape(10493, 1,6)
+x_test = x_test.reshape(3888, 1,6)
 # print(y_train.shape) # (41971, )
 # from sklearn.preprocessing import MinMaxScaler, StandardScaler
 # scaler = StandardScaler()
@@ -155,7 +155,7 @@ y0=[]
 y1=[]
 for q in q_lst:
     model = Sequential()
-    model.add(LSTM(256, activation='relu', input_shape = (1,7)))
+    model.add(LSTM(256, activation='relu', input_shape = (1,6)))
     # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
     # model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
     # model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
@@ -170,7 +170,7 @@ for q in q_lst:
 
     from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
     es = EarlyStopping(monitor='val_loss', patience=10)
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.7, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.5, verbose=1)
     model.compile(loss=lambda y,pred: quantile_loss(q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(q, y, pred)])
 
     model.fit(x_train, y1_train, batch_size=96, epochs=100, validation_data=(x_val, y1_val), callbacks=[es, reduce_lr])
@@ -185,7 +185,7 @@ submission.loc[submission.id.str.contains("Day7"), "q_0.1":] = num_temp1
 
 for q in q_lst:
     model = Sequential()
-    model.add(LSTM(256, activation='relu', input_shape = (1,7)))
+    model.add(LSTM(256, activation='relu', input_shape = (1,6)))
     # model.add(Conv1D(256,2,padding = 'same', activation = 'relu',input_shape = (1,7)))
     # model.add(Conv1D(128,2,padding = 'same', activation = 'relu'))
     # model.add(Conv1D(64,2,padding = 'same', activation = 'relu'))
@@ -200,7 +200,7 @@ for q in q_lst:
 
     from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
     es = EarlyStopping(monitor='val_loss', patience=10)
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.7, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.5, verbose=1)
     model.compile(loss=lambda y,pred: quantile_loss(q,y,pred), optimizer='adam', metrics=[lambda y, pred: quantile_loss(q, y, pred)])    
     
     model.fit(x_train, y2_train, batch_size=96, epochs=100, validation_data=(x_val, y2_val),callbacks=[es, reduce_lr])
@@ -326,10 +326,15 @@ Y0 = pd.DataFrame(y0)
 #  LSTM - StandarScaler - epochs=100
 #  loss: 0.8161 - <lambda>: 0.8161
 #  LSTM - StandarScaler - epochs=100 - RL=0.7
+#  loss: 0.8233 - <lambda>: 0.8233
 
-
+# loss: 0.8157 - <lambda>: 0.8157
+# loss: 0.8271 - <lambda>: 0.8271
 #  GPU 오류
 # 374/438 [========================>.....] - ETA: 0s - loss: 2.2510 - <lambda>: 2.25102021-01-25 12:15:29.974332: E 
 # tensorflow/stream_executor/cuda/cuda_event.cc:29] Error polling for event status: failed to query event: CUDA_ERROR_UNKNOWN: unknown error
 # 2021-01-25 12:15:30.469082: F tensorflow/core/common_runtime/gpu/gpu_event_mgr.cc:220] Unexpected Event status: 1
 # PS C:\photovoltaics> 
+
+
+# loss: 0.8082 - <lambda>: 0.8082
