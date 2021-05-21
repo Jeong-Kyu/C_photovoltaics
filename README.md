@@ -16,4 +16,6 @@
   
 + Model
   + 시계열데이터 split 함수 전처리
+  + Standardscaler
   + LSTM / LGBM
+  + Pinball Loss : Quantile(0.1 ~ 0.9)로 예측
