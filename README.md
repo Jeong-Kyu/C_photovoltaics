@@ -15,5 +15,5 @@
     + “파일명_날짜_시간” 형식(예시: 0.csv_Day7_0h00m ⇒ 0.csv 파일의 7일차 0시00분 예측 값)에 유의
   
 + Model
-  + OpenCV : 알파벳 데이터 색상 및 잡음 제거
-  + resnet기반 Conv2d 
+  + 시계열데이터 split 함수 전처리
+  + LSTM / LGBM
